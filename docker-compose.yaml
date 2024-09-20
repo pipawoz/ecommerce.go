@@ -1,0 +1,85 @@
+services:
+  postgres:
+    image: postgres:12
+    environment:
+      POSTGRES_USER: orderuser
+      POSTGRES_PASSWORD: orderpass
+      POSTGRES_DB: orderdb
+    ports:
+      - "5432:5432"
+    networks:
+      - ecommerce-network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orderuser -d orderdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  temporal:
+    image: temporalio/auto-setup:1.25.0
+    ports:
+      - "7233:7233"
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=orderuser
+      - POSTGRES_PWD=orderpass
+      - POSTGRES_SEEDS=postgres
+      - TEMPORAL_HOST=temporal:7233
+    networks:
+      - ecommerce-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "tctl",
+          "--address",
+          "temporal:7233",
+          "workflow",
+          "list"
+        ]
+      interval: 1s
+      timeout: 5s
+      retries: 30
+    # volumes:
+    #   - ./temporal-config.yaml:/etc/temporal/config/config_template.yaml
+    # command: ["temporal-server", "--config", "/etc/temporal/config/temporal-config.yaml", "start", "--allow-no-auth"]
+
+
+  temporal-admin-tools:
+    image: temporalio/admin-tools:1.25.0-tctl-1.18.1-cli-1.1.0
+    depends_on:
+      - temporal
+    networks:
+      - ecommerce-network
+
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    networks:
+      - ecommerce-network
+    depends_on:
+      temporal: 
+          condition: service_healthy
+    environment:
+      - DB_HOST=postgres
+      - DB_USER=orderuser
+      - DB_PASSWORD=orderpass
+      - DB_NAME=orderdb
+      - TEMPORAL_HOST=temporal:7233
+    # command: ["sleep", "infinity"]
+
+networks:
+  ecommerce-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  temporal_archival:
+
