@@ -23,7 +23,7 @@ This project implements a robust and scalable order processing system in Golang.
 ## Installation
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/order-processing-system
+   git clone https://github.com/pipawoz/order-processing-system
    cd order-processing-system
    ```
 
